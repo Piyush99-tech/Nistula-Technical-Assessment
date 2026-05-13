@@ -17,18 +17,37 @@ class ClaudeServiceError(Exception):
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "prompts" / "claude_prompt.txt"
 
 
+def _safe_for_format(value: str) -> str:
+    """So guest text or context with { } does not break str.format()."""
+    return value.replace("{", "{{").replace("}", "}}")
+
+
 def build_claude_prompt(message: NormalizedMessage, property_context: str) -> str:
     prompt_template = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8")
 
     return prompt_template.format(
-        guest_name=message.guest_name,
-        source=message.source,
-        booking_ref=message.booking_ref or "Not provided",
-        property_id=message.property_id,
-        query_type=message.query_type or "general_enquiry",
-        message_text=message.message_text,
-        property_context=property_context,
+        guest_name=_safe_for_format(message.guest_name),
+        source=str(message.source),
+        booking_ref=_safe_for_format(message.booking_ref or "Not provided"),
+        property_id=_safe_for_format(message.property_id),
+        query_type=str(message.query_type or "general_enquiry"),
+        message_text=_safe_for_format(message.message_text),
+        property_context=_safe_for_format(property_context),
     )
+
+
+def _anthropic_error_detail(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+        err = data.get("error") if isinstance(data, dict) else None
+        if isinstance(err, dict) and err.get("message"):
+            return str(err["message"])
+        if isinstance(err, str):
+            return err
+    except ValueError:
+        pass
+    text = response.text or ""
+    return text[:800] if text else "(empty body)"
 
 
 async def generate_draft_reply(message: NormalizedMessage, property_context: str) -> str:
@@ -61,8 +80,9 @@ async def generate_draft_reply(message: NormalizedMessage, property_context: str
     except httpx.TimeoutException as exc:
         raise ClaudeServiceError("Claude API request timed out.") from exc
     except httpx.HTTPStatusError as exc:
+        detail = _anthropic_error_detail(exc.response)
         raise ClaudeServiceError(
-            f"Claude API returned {exc.response.status_code}.",
+            f"Claude API returned {exc.response.status_code}: {detail}",
         ) from exc
     except httpx.HTTPError as exc:
         raise ClaudeServiceError("Claude API request failed.") from exc
