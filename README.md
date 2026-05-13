@@ -60,7 +60,21 @@ Small FastAPI service that accepts guest messages from multiple channels, normal
 
    - Open **http://127.0.0.1:8000/docs** (Swagger UI).  
    - `POST /webhook/message` with a JSON body (see sample below).  
-   - You can paste a screenshot of a successful Swagger response here in the repo (e.g. save as `docs/swagger-response.png` and link it in your submission zip) — reviewers like seeing one real 200 response.
+   - Real Swagger screenshots are in **[Screenshots (Swagger)](#screenshots-swagger)** below.
+
+---
+
+## Screenshots (Swagger)
+
+**Request** — `POST /webhook/message` with a complaint / refund-style guest message:
+
+![Swagger: request body for POST /webhook/message](docs/swagger-request.png)
+
+**Response** — `200` with `query_type`, `drafted_reply` (newlines show as `\n` in JSON), `confidence_score`, and `action` (`escalate` for this case):
+
+![Swagger: 200 response JSON](docs/swagger-response.png)
+
+To add or replace images later: put PNG/JPG files under `docs/` and keep these paths, or change the paths in this README. Use relative paths like `docs/your-file.png` so they work on GitHub and after `git clone`.
 
 ---
 
@@ -118,13 +132,12 @@ Returns (shape required by the brief):
 
 ---
 
-## Query classifier — how it works (plain English)
+## Query classifier — how it works 
 
-I’m not pretending this is machine learning. It’s a **keyword pass** over the message, lowercased, in a **fixed order**: we walk a small map (complaint → availability → pricing → check-in style → special request). The **first bucket that matches any substring** wins; if nothing hits, we call it **`general_enquiry`**.
+ It’s a **keyword pass** over the message, lowercased, in a **fixed order**: we walk a small map (complaint → availability → pricing → check-in style → special request). The **first bucket that matches any substring** wins; if nothing hits, we call it **`general_enquiry`**.
 
-Why that order? **Complaints** often contain words like “wifi” or “available” in a negative sentence, so if we checked “wifi” before “not working”, we’d mis-label a broken wifi ticket as a casual check-in question. So **complaint is checked first**.
+Why that order? **Complaints** often contain words like “not working” or “broken” in a negative sentence, so if we checked “wifi” before “not working”, we’d mis-label a broken wifi ticket as a casual check-in question. So **complaint is checked first**.
 
-It’s dumb on purpose: easy to read, easy to tune, and honest in the README. The brief said simple logic is fine; the “smart” part is left to Claude **after** we’ve attached property context and a coarse label.
 
 ---
 
@@ -193,13 +206,3 @@ requirements.txt
 - **Security:** never commit `.env`; `.gitignore` should exclude it (verify before push).
 
 ---
-
-## Optional screenshot
-
-If you add `docs/swagger-response.png` (your successful Swagger or curl output), you can link it in your write-up with:
-
-```markdown
-![Example 200 response](docs/swagger-response.png)
-```
-
-The JSON example above matches what that screenshot would show at a high level.
